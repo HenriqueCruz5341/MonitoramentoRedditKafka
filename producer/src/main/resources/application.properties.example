@@ -1,0 +1,12 @@
+reddit.api.client.id=
+reddit.api.client.secret=
+
+reddit.auth.grant_type=
+reddit.auth.username=
+reddit.auth.password=
+
+kafka.bootstrap.servers=localhost:9092
+kafka.key.serializer=org.apache.kafka.common.serialization.Serializer
+kafka.value.serializer=org.apache.kafka.common.serialization.Deserializer
+# kafka.key.serializer=org.apache.kafka.common.serialization.StringSerializer
+# kafka.value.serializer=org.apache.kafka.common.serialization.StringSerializer
