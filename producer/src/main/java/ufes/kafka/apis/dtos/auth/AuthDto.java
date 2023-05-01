@@ -12,6 +12,8 @@ public class AuthDto {
     @SerializedName("expires_in")
     private int expiresIn;
 
+    private String username;
+
     public String getAccessToken() {
         return accessToken;
     }
@@ -34,6 +36,14 @@ public class AuthDto {
 
     public void setExpiresIn(int expiresIn) {
         this.expiresIn = expiresIn;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
     }
 
 }

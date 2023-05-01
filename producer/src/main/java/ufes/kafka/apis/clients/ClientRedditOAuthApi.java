@@ -10,6 +10,7 @@ import ufes.kafka.apis.interceptors.BearerTokenInterceptor;
 import ufes.kafka.apis.services.BlockedUsersService;
 import ufes.kafka.apis.services.CommentService;
 import ufes.kafka.apis.services.MeService;
+import ufes.kafka.apis.services.OverviewService;
 import ufes.kafka.apis.services.SearchService;
 
 public class ClientRedditOAuthApi {
@@ -20,6 +21,7 @@ public class ClientRedditOAuthApi {
     private BlockedUsersService blockedUsersService;
     private MeService meService;
     private SearchService searchService;
+    private OverviewService overviewService;
 
     public static ClientRedditOAuthApi getInstance(String accessToken) {
         if (instance == null) {
@@ -57,6 +59,7 @@ public class ClientRedditOAuthApi {
         this.blockedUsersService = retrofit.create(BlockedUsersService.class);
         this.meService = retrofit.create(MeService.class);
         this.searchService = retrofit.create(SearchService.class);
+        this.overviewService = retrofit.create(OverviewService.class);
     }
 
     public CommentService getCommentService() {
@@ -75,4 +78,7 @@ public class ClientRedditOAuthApi {
         return this.searchService;
     }
 
+    public OverviewService getOverviewService() {
+        return this.overviewService;
+    }
 }

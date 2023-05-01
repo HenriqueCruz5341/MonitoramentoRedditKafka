@@ -1,4 +1,4 @@
-package ufes.kafka.apis.dtos.comment;
+package ufes.kafka.apis.dtos.common;
 
 import com.google.gson.annotations.SerializedName;
 
@@ -9,7 +9,7 @@ public class DataPostDto {
     @SerializedName("title")
     public String title;
 
-    @SerializedName("url")
+    @SerializedName("permalink")
     public String url;
 
     @SerializedName("author")

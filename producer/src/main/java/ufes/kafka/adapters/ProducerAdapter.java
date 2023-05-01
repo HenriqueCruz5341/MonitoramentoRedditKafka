@@ -11,13 +11,12 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ufes.kafka.ProducerApp;
 import ufes.kafka.helpers.KafkaJsonSerializer;
 import ufes.kafka.helpers.PropertiesLoader;
 
 public class ProducerAdapter<V> {
 
-    private static final Logger logger = LoggerFactory.getLogger(ProducerApp.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(ProducerAdapter.class.getName());
     Producer<String, V> producer;
 
     public ProducerAdapter() {

@@ -1,10 +1,10 @@
-package ufes.kafka.apis.dtos.comment;
+package ufes.kafka.apis.dtos.overview;
 
 import com.google.gson.annotations.SerializedName;
 
 import ufes.kafka.apis.dtos.common.DataDto;
 
-public class CommentDto {
+public class OverviewDto {
     @SerializedName("data")
     public DataDto data;
 

@@ -1,4 +1,4 @@
-package ufes.kafka.apis.dtos.search;
+package ufes.kafka.apis.dtos.common;
 
 import com.google.gson.annotations.SerializedName;
 
