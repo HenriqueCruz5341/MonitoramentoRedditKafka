@@ -12,6 +12,7 @@ import ufes.kafka.apis.services.CommentService;
 import ufes.kafka.apis.services.MeService;
 import ufes.kafka.apis.services.OverviewService;
 import ufes.kafka.apis.services.SearchService;
+import ufes.kafka.apis.services.MessagingService;
 
 public class ClientRedditOAuthApi {
     private static ClientRedditOAuthApi instance = null;
@@ -22,6 +23,7 @@ public class ClientRedditOAuthApi {
     private MeService meService;
     private SearchService searchService;
     private OverviewService overviewService;
+    private MessagingService messagingService;
 
     public static ClientRedditOAuthApi getInstance(String accessToken) {
         if (instance == null) {
@@ -60,6 +62,7 @@ public class ClientRedditOAuthApi {
         this.meService = retrofit.create(MeService.class);
         this.searchService = retrofit.create(SearchService.class);
         this.overviewService = retrofit.create(OverviewService.class);
+        this.messagingService = retrofit.create(MessagingService.class);
     }
 
     public CommentService getCommentService() {
@@ -80,5 +83,9 @@ public class ClientRedditOAuthApi {
 
     public OverviewService getOverviewService() {
         return this.overviewService;
+    }
+
+    public MessagingService getMessagingService() {
+        return this.messagingService;
     }
 }
