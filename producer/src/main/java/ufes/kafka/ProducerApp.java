@@ -10,6 +10,7 @@ import ufes.kafka.adapters.AuthAdapter;
 import ufes.kafka.adapters.BlockedUsersAdapter;
 import ufes.kafka.adapters.CommentAdapter;
 import ufes.kafka.adapters.MeAdapter;
+import ufes.kafka.adapters.MessagingAdapter;
 import ufes.kafka.adapters.OverviewAdapter;
 import ufes.kafka.adapters.ProducerAdapter;
 import ufes.kafka.adapters.SearchAdapter;
@@ -17,9 +18,11 @@ import ufes.kafka.apis.dtos.blocked.BlockedUsersDto;
 import ufes.kafka.apis.dtos.comment.CommentDto;
 import ufes.kafka.apis.dtos.common.DataPostDto;
 import ufes.kafka.apis.dtos.me.MeDto;
+import ufes.kafka.apis.dtos.messaging.MessagingDto;
 import ufes.kafka.runnables.BlockedUsersRunnable;
 import ufes.kafka.runnables.CommentRunnable;
 import ufes.kafka.runnables.MeRunnable;
+import ufes.kafka.runnables.MessagingRunnable;
 import ufes.kafka.runnables.OverviewRunnable;
 
 public class ProducerApp {
@@ -33,17 +36,20 @@ public class ProducerApp {
         AuthAdapter authAdapter = new AuthAdapter();
         MeAdapter meAdapter = new MeAdapter();
         BlockedUsersAdapter blockedUsersAdapter = new BlockedUsersAdapter();
+        MessagingAdapter messagingAdapter = new MessagingAdapter();
         SearchAdapter searchAdapter = new SearchAdapter();
         CommentAdapter commentAdapter = new CommentAdapter();
         OverviewAdapter overviewAdapter = new OverviewAdapter();
 
         ProducerAdapter<MeDto> meProducer = new ProducerAdapter<>();
         ProducerAdapter<BlockedUsersDto> blockedUsersProducer = new ProducerAdapter<>();
+        ProducerAdapter<MessagingDto> messagingProducer = new ProducerAdapter<>();
         ProducerAdapter<List<CommentDto>> commentProducer = new ProducerAdapter<>();
         ProducerAdapter<DataPostDto> overviewProducer = new ProducerAdapter<>();
 
         meProducer.start();
         blockedUsersProducer.start();
+        messagingProducer.start();
         commentProducer.start();
         overviewProducer.start();
 
@@ -56,11 +62,17 @@ public class ProducerApp {
                 blockedUsersProducer, 20000);
         new Thread(blockedUsersRunnable).start();
 
+        MessagingRunnable messagingRunnable = new MessagingRunnable(authAdapter, messagingAdapter,
+                messagingProducer,
+                10000);
+        new Thread(messagingRunnable).start();
+
         CommentRunnable commentRunnable = new CommentRunnable(authAdapter, searchAdapter, commentAdapter,
                 commentProducer, 15000, queryList, usersToOverview);
         new Thread(commentRunnable).start();
 
-        OverviewRunnable overviewRunnable = new OverviewRunnable(authAdapter, overviewAdapter, overviewProducer, 5000,
+        OverviewRunnable overviewRunnable = new OverviewRunnable(authAdapter, overviewAdapter, overviewProducer,
+                5000,
                 usersToOverview);
         new Thread(overviewRunnable).start();
 
@@ -68,6 +80,7 @@ public class ProducerApp {
 
         meProducer.close();
         blockedUsersProducer.close();
+        messagingProducer.close();
         commentProducer.close();
         overviewProducer.close();
     }

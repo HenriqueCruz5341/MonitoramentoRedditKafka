@@ -11,14 +11,14 @@ public class MessagingRunnable implements Runnable {
 
     private AuthAdapter authAdapter;
     private MessagingAdapter messagingAdapter;
-    private ProducerAdapter<MessagingDto> meProducer;
+    private ProducerAdapter<MessagingDto> messagingProducer;
     private long sleepTime;
 
     public MessagingRunnable(AuthAdapter authAdapter, MessagingAdapter messagingAdapter,
-            ProducerAdapter<MessagingDto> meProducer, long sleepTime) {
+            ProducerAdapter<MessagingDto> messagingProducer, long sleepTime) {
         this.authAdapter = authAdapter;
         this.messagingAdapter = messagingAdapter;
-        this.meProducer = meProducer;
+        this.messagingProducer = messagingProducer;
         this.sleepTime = sleepTime;
     }
 
@@ -38,8 +38,8 @@ public class MessagingRunnable implements Runnable {
             if (responseMessaging.isSuccessful()) {
                 MessagingDto meDto = responseMessaging.body();
 
-                meProducer.send("messaging", authDto.getUsername(), meDto);
-                meProducer.flush();
+                messagingProducer.send("messaging", authDto.getUsername(), meDto);
+                messagingProducer.flush();
             } else if (responseMessaging.code() == 401) {
                 responseAuth = authAdapter.doAuth();
                 if (!responseAuth.isSuccessful()) {
