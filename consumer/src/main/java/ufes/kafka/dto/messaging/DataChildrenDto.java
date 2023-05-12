@@ -1,19 +1,17 @@
-package ufes.kafka.apis.dtos.messaging;
+package ufes.kafka.dto.messaging;
 
-import com.google.gson.annotations.SerializedName;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.util.Date;
 
 public class DataChildrenDto {
-    @SerializedName("id")
     public String id;
-    @SerializedName("parent_id")
     public String parentId;
-    @SerializedName("author")
     public String author;
-    @SerializedName("body")
     public String body;
-    @SerializedName("link_title")
     public String linkTitle;
-    @SerializedName("created")
     public long created;
 
     public String getId() {
@@ -62,5 +60,9 @@ public class DataChildrenDto {
 
     public void setCreated(long created) {
         this.created = created;
+    }
+
+    public LocalDateTime getLocalDateTime() {
+        return LocalDateTime.ofInstant(new Date(created * 1000).toInstant(), ZoneId.systemDefault());
     }
 }

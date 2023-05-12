@@ -1,6 +1,4 @@
-package ufes.kafka.apis.dtos.messaging;
-
-import com.google.gson.annotations.SerializedName;
+package ufes.kafka.dto.messaging;
 
 public class ChildrenDto {
     /*
@@ -10,10 +8,8 @@ public class ChildrenDto {
      * t4 - Message
      * t5 - Subreddit
      */
-    @SerializedName("kind")
     public String kind;
 
-    @SerializedName("data")
     public DataChildrenDto data;
 
     public String getKind() {

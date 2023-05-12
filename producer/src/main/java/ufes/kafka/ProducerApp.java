@@ -18,7 +18,7 @@ import ufes.kafka.apis.dtos.blocked.BlockedUsersDto;
 import ufes.kafka.apis.dtos.comment.CommentDto;
 import ufes.kafka.apis.dtos.common.DataPostDto;
 import ufes.kafka.apis.dtos.me.MeDto;
-import ufes.kafka.apis.dtos.messaging.MessagingDto;
+import ufes.kafka.apis.dtos.messaging.ChildrenDto;
 import ufes.kafka.runnables.BlockedUsersRunnable;
 import ufes.kafka.runnables.CommentRunnable;
 import ufes.kafka.runnables.MeRunnable;
@@ -43,7 +43,7 @@ public class ProducerApp {
 
         ProducerAdapter<MeDto> meProducer = new ProducerAdapter<>();
         ProducerAdapter<BlockedUsersDto> blockedUsersProducer = new ProducerAdapter<>();
-        ProducerAdapter<MessagingDto> messagingProducer = new ProducerAdapter<>();
+        ProducerAdapter<ChildrenDto> messagingProducer = new ProducerAdapter<>();
         ProducerAdapter<List<CommentDto>> commentProducer = new ProducerAdapter<>();
         ProducerAdapter<DataPostDto> overviewProducer = new ProducerAdapter<>();
 
