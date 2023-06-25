@@ -19,11 +19,12 @@ import ufes.kafka.apis.dtos.comment.CommentDto;
 import ufes.kafka.apis.dtos.common.DataPostDto;
 import ufes.kafka.apis.dtos.me.MeDto;
 import ufes.kafka.apis.dtos.messaging.ChildrenDto;
+import ufes.kafka.apis.dtos.post.PostDto;
 import ufes.kafka.runnables.BlockedUsersRunnable;
-import ufes.kafka.runnables.CommentRunnable;
 import ufes.kafka.runnables.MeRunnable;
 import ufes.kafka.runnables.MessagingRunnable;
 import ufes.kafka.runnables.OverviewRunnable;
+import ufes.kafka.runnables.PostRunnable;
 
 public class ProducerApp {
 
@@ -44,13 +45,13 @@ public class ProducerApp {
         ProducerAdapter<MeDto> meProducer = new ProducerAdapter<>();
         ProducerAdapter<BlockedUsersDto> blockedUsersProducer = new ProducerAdapter<>();
         ProducerAdapter<ChildrenDto> messagingProducer = new ProducerAdapter<>();
-        ProducerAdapter<List<CommentDto>> commentProducer = new ProducerAdapter<>();
+        ProducerAdapter<PostDto> postProducer = new ProducerAdapter<>();
         ProducerAdapter<DataPostDto> overviewProducer = new ProducerAdapter<>();
 
         meProducer.start();
         blockedUsersProducer.start();
         messagingProducer.start();
-        commentProducer.start();
+        postProducer.start();
         overviewProducer.start();
 
         CountDownLatch latch = new CountDownLatch(1);
@@ -67,9 +68,9 @@ public class ProducerApp {
                 10000);
         new Thread(messagingRunnable).start();
 
-        CommentRunnable commentRunnable = new CommentRunnable(authAdapter, searchAdapter, commentAdapter,
-                commentProducer, 15000, queryList, usersToOverview);
-        new Thread(commentRunnable).start();
+        PostRunnable postRunnable = new PostRunnable(authAdapter, searchAdapter, commentAdapter,
+                postProducer, 15000, queryList, usersToOverview);
+        new Thread(postRunnable).start();
 
         OverviewRunnable overviewRunnable = new OverviewRunnable(authAdapter, overviewAdapter, overviewProducer,
                 5000,
@@ -81,7 +82,7 @@ public class ProducerApp {
         meProducer.close();
         blockedUsersProducer.close();
         messagingProducer.close();
-        commentProducer.close();
+        postProducer.close();
         overviewProducer.close();
     }
 }

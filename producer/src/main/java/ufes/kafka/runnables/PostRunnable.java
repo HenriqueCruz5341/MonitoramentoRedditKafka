@@ -11,25 +11,26 @@ import ufes.kafka.adapters.SearchAdapter;
 import ufes.kafka.apis.dtos.auth.AuthDto;
 import ufes.kafka.apis.dtos.comment.CommentDto;
 import ufes.kafka.apis.dtos.common.ChildrenDto;
+import ufes.kafka.apis.dtos.post.PostDto;
 import ufes.kafka.apis.dtos.search.SearchDto;
 
-public class CommentRunnable implements Runnable {
+public class PostRunnable implements Runnable {
 
     private AuthAdapter authAdapter;
     private SearchAdapter searchAdapter;
     private CommentAdapter commentAdapter;
-    private ProducerAdapter<List<CommentDto>> commentProducer;
+    private ProducerAdapter<PostDto> postProducer;
     private long sleepTime;
     private List<String> queryList;
     private Set<String> usersToOverview;
 
-    public CommentRunnable(AuthAdapter authAdapter, SearchAdapter searchAdapter, CommentAdapter commentAdapter,
-            ProducerAdapter<List<CommentDto>> commentProducer,
+    public PostRunnable(AuthAdapter authAdapter, SearchAdapter searchAdapter, CommentAdapter commentAdapter,
+            ProducerAdapter<PostDto> postProducer,
             long sleepTime, List<String> queryList, Set<String> usersToOverview) {
         this.authAdapter = authAdapter;
         this.searchAdapter = searchAdapter;
         this.commentAdapter = commentAdapter;
-        this.commentProducer = commentProducer;
+        this.postProducer = postProducer;
         this.sleepTime = sleepTime;
         this.queryList = queryList;
         this.usersToOverview = usersToOverview;
@@ -85,9 +86,10 @@ public class CommentRunnable implements Runnable {
                     }
 
                     List<CommentDto> commentDtoList = responseComment.body();
+                    PostDto postDto = new PostDto(commentDtoList);
 
-                    this.commentProducer.send("posts", childrenDto.getDataPost().getId(), commentDtoList);
-                    this.commentProducer.flush();
+                    this.postProducer.send("posts", childrenDto.getDataPost().getId(), postDto);
+                    this.postProducer.flush();
                 }
             }
         }
