@@ -1,197 +1,151 @@
 package ufes.kafka;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.CountDownLatch;
 
-import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.streams.KafkaStreams;
+import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
+import org.apache.kafka.streams.errors.StreamsUncaughtExceptionHandler;
 import org.apache.kafka.streams.kstream.Consumed;
+import org.apache.kafka.streams.kstream.Grouped;
+import org.apache.kafka.streams.kstream.JoinWindows;
+import org.apache.kafka.streams.kstream.KGroupedStream;
 import org.apache.kafka.streams.kstream.KStream;
+import org.apache.kafka.streams.kstream.KTable;
+import org.apache.kafka.streams.kstream.Materialized;
+import org.apache.kafka.streams.kstream.Produced;
+import org.apache.kafka.streams.kstream.SlidingWindows;
+import org.apache.kafka.streams.kstream.ValueJoiner;
+import org.apache.kafka.streams.kstream.Windowed;
 
+import ufes.kafka.dto.blocked.BlockedUsersDto;
+import ufes.kafka.dto.common.DataPostDto;
+import ufes.kafka.dto.me.MeDto;
 import ufes.kafka.dto.messaging.ChildrenDto;
-import ufes.kafka.dto.post.PostDto;
+import ufes.kafka.dto.profile.ProfileDto;
 import ufes.kafka.helpers.KafkaJsonDeserializer;
 import ufes.kafka.helpers.KafkaJsonSerializer;
-import ufes.kafka.producers.HotPostsProducer;
 
 public class ConsumerApp {
-    private static final int List = 0;
-
-    public static void main(String[] args) throws InterruptedException {
-        Map<String, LocalDateTime> actualTimestamps = new HashMap<>();
-        Map<String, Integer> hotPostCounts = new HashMap<>();
-        HotPostsProducer hotPostsProducer = new HotPostsProducer();
-
-        Properties props = new Properties();
-        props.put("bootstrap.servers", "localhost:9092");
-        props.put("group.id", "test");
-        props.put("enable.auto.commit", "true");
-        props.put("auto.commit.interval.ms", "1000");
-        props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
-        props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
-
-        Properties props2 = new Properties();
-        props2.put("bootstrap.servers", "localhost:9092");
-        props2.put("group.id", "test2");
-        props2.put("enable.auto.commit", "true");
-        props2.put("auto.commit.interval.ms", "1000");
-        props2.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
-        props2.put("value.deserializer", "org.apache.kafka.common.serialization.Deserializer");
+    public static void main(String[] args) {
+        String BootstrapServer = "localhost:9092";
 
         Properties config = new Properties();
-        config.put(StreamsConfig.APPLICATION_ID_CONFIG, "continuous-kafka-streams-app");
-        config.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        config.put(StreamsConfig.APPLICATION_ID_CONFIG, "stream-processors");
+        config.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, BootstrapServer);
+        config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         config.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
         config.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass());
-        config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
-        // Criação da topologia do Kafka Streams
-        // StreamsBuilder builder = new StreamsBuilder();
-        // builder.stream("posts", Consumed.with(Serdes.String(), Serdes.String()))
-        // .foreach((key, value) -> System.out.println("Received message: key=" + key +
-        // ", value=" + value));
-
-        // // Criação e inicialização do Kafka Streams
-        // KafkaStreams streams = new KafkaStreams(builder.build(), config);
-        CountDownLatch latch = new CountDownLatch(1);
+        StreamsBuilder builder = new StreamsBuilder();
 
         final Serde<String> stringSerde = Serdes.String();
-        final Serde<PostDto> jsonSerde = Serdes.serdeFrom(new KafkaJsonSerializer<PostDto>(),
-                new KafkaJsonDeserializer<PostDto>(PostDto.class));
 
-        StreamsBuilder builderJson = new StreamsBuilder();
-        KStream<String, PostDto> postsKStream = builderJson.stream("posts",
-                Consumed.with(stringSerde, jsonSerde));
+        // Stream 1:
+        // Recebe os dados do tópico "messaging", verifica se dentro de um período de 15
+        // segundos, houve 3 ou mais posts com o mesmo parentId, e envia para o tópico
+        // "hot-posts" o parentId e a quantidade de mensagens
+        final Serde<ChildrenDto> childrenDtoJsonSerde = Serdes.serdeFrom(new KafkaJsonSerializer<ChildrenDto>(),
+                new KafkaJsonDeserializer<ChildrenDto>(ChildrenDto.class));
+        KStream<String, ChildrenDto> nessagingKStream = builder.stream("messaging",
+                Consumed.with(stringSerde, childrenDtoJsonSerde));
+        KGroupedStream<String, ChildrenDto> groupedStream = nessagingKStream
+                .groupByKey(Grouped.with(stringSerde, childrenDtoJsonSerde));
+        SlidingWindows window = SlidingWindows.ofTimeDifferenceAndGrace(Duration.ofSeconds(15), Duration.ofSeconds(1));
+        // TimeWindows window = TimeWindows.ofSizeAndGrace(Duration.ofSeconds(15),
+        // Duration.ofSeconds(1));
+        KTable<Windowed<String>, Long> windowedCounts = groupedStream
+                .windowedBy(window).count();
+        windowedCounts
+                .filter((windowedKey, count) -> count >= 3).toStream()
+                .map((windowedKey, count) -> new KeyValue<>(windowedKey.key(), count.toString()))
+                .to("hot-posts", Produced.with(stringSerde, stringSerde));
+        // =====================================================================================================
 
-        postsKStream.foreach((key, value) -> System.out.println("Received message: key=" + key +
-                ", value=" + value));
+        // Stream 2:
+        // Recebe os dados do tópico "overview", verifica se o id do post já foi
+        // publicado no tópico "overview-filtered", se não foi, publica no tópico
+        // "overview-filtered"
+        final Serde<DataPostDto> dataPostDtoJsonSerde = Serdes.serdeFrom(new KafkaJsonSerializer<DataPostDto>(),
+                new KafkaJsonDeserializer<DataPostDto>(DataPostDto.class));
+        KStream<String, DataPostDto> overviewKStream = builder.stream("overview",
+                Consumed.with(stringSerde, dataPostDtoJsonSerde));
+        KGroupedStream<String, DataPostDto> groupedStream2 = overviewKStream
+                .selectKey((key, value) -> value.getId())
+                .groupByKey();
+        KTable<String, DataPostDto> table = groupedStream2.reduce((aggValue,
+                newValue) -> newValue, Materialized.as("overview-filtered-store"));
+        table.toStream().to("overview-filtered", Produced.with(stringSerde,
+                dataPostDtoJsonSerde));
+        // ======================================================================================================
 
-        KafkaStreams streams = new KafkaStreams(builderJson.build(), config);
+        // Stream 3:
+        // Recebe os dados to tópicos "num-subscribers" e "blocked-users", verifica se
+        // a key é igual, se for, é criado um evento composto pelos dados dos dois
+        // e publica no tópico "profile"
+        final Serde<MeDto> meDtoJsonSerde = Serdes.serdeFrom(new KafkaJsonSerializer<MeDto>(),
+                new KafkaJsonDeserializer<MeDto>(MeDto.class));
+        final Serde<BlockedUsersDto> blockedUsersDtoJsonSerde = Serdes.serdeFrom(
+                new KafkaJsonSerializer<BlockedUsersDto>(),
+                new KafkaJsonDeserializer<BlockedUsersDto>(BlockedUsersDto.class));
+        final Serde<ProfileDto> profileDtoJsonSerde = Serdes.serdeFrom(new KafkaJsonSerializer<ProfileDto>(),
+                new KafkaJsonDeserializer<ProfileDto>(ProfileDto.class));
+        KStream<String, MeDto> numSubscribersKStream = builder.stream("num-subscribers",
+                Consumed.with(stringSerde, meDtoJsonSerde));
+        KStream<String, BlockedUsersDto> blockedUsersKStream = builder.stream("blocked-users",
+                Consumed.with(stringSerde, blockedUsersDtoJsonSerde));
+        ValueJoiner<MeDto, BlockedUsersDto, ProfileDto> valueJoiner = (numSubscribers, blockedUsers) -> {
+            ProfileDto profile = new ProfileDto();
+            profile.setBlockedUsers(blockedUsers.getData().getChildren());
+            profile.setNumSubscribers(numSubscribers.getUserInfo().getSubscribers());
+            return profile;
+        };
+        KStream<String, ProfileDto> profileKStream = numSubscribersKStream.join(blockedUsersKStream, valueJoiner,
+                JoinWindows.ofTimeDifferenceAndGrace(Duration.ofSeconds(30), Duration.ofSeconds(1)));
+        profileKStream.to("profile", Produced.with(stringSerde, profileDtoJsonSerde));
+        // ======================================================================================================
 
-        // Shutdown hook para encerrar o Kafka Streams corretamente ao encerrar a
-        // aplicação
-        Runtime.getRuntime().addShutdownHook(new Thread("streams-shutdown-hook") {
-            @Override
-            public void run() {
-                streams.close();
-                latch.countDown();
-            }
+        // Stream 4:
+        // Recebe os dados do tópico "posts", verifica se o post tem mais de 3
+        // comentários, se tiver, publica no tópico "danger-posts"
+
+        // ======================================================================================================
+
+        KafkaStreams streams = new KafkaStreams(builder.build(), config);
+
+        streams.setUncaughtExceptionHandler(ex -> {
+            System.out.println(
+                    "Kafka-Streams uncaught exception occurred. Stream will be replaced with new thread"
+                            + ex);
+            return StreamsUncaughtExceptionHandler.StreamThreadExceptionResponse.REPLACE_THREAD;
         });
 
-        try {
-            streams.start();
-            latch.await(); // Espera indefinidamente até que a aplicação seja encerrada
-        } catch (Throwable e) {
-            System.exit(1);
-        }
-        System.exit(0);
+        // only do this in dev - not in prod
+        streams.cleanUp();
+        streams.start();
+        // print the topology
+        // streams.localThreadsMetadata().forEach(data -> System.out.println(data));
+        streams.metadataForLocalThreads().forEach(data -> System.out.println(data));
 
-        // KafkaConsumer<String, String> consumerJson = new KafkaConsumer<>(props);
-        // Consumer<String, ChildrenDto> consumerMessages = new KafkaConsumer<String,
-        // ChildrenDto>(props2,
-        // new StringDeserializer(), new
-        // KafkaJsonDeserializer<ChildrenDto>(ChildrenDto.class));
-
-        // consumerJson.subscribe(Arrays.asList("num-subscribers", "blocked-users",
-        // "posts", "overview"));
-        // consumerMessages.subscribe(Arrays.asList("messaging"));
-
-        // Duration timeout = Duration.ofMillis(200);
-
-        // CountDownLatch latch = new CountDownLatch(1);
-
-        // Properties propsStream = new Properties();
-        // propsStream.put(StreamsConfig.APPLICATION_ID_CONFIG,
-        // "wordcount-application");
-        // propsStream.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-        // propsStream.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG,
-        // Serdes.String().getClass());
-        // propsStream.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG,
-        // Serdes.String().getClass());
-
-        // final Serde<String> stringSerde = Serdes.String();
-        // final Serde<PostDto> jsonSerde = Serdes.serdeFrom(new
-        // KafkaJsonSerializer<PostDto>(),
-        // new KafkaJsonDeserializer<PostDto>(PostDto.class));
-
-        // StreamsBuilder builder = new StreamsBuilder();
-        // KStream<String, PostDto> postsKStream = builder.stream("posts",
-        // Consumed.with(stringSerde,
-        // jsonSerde));
-
-        // postsKStream.peek((key, value) -> {
-        // System.out.println(" --> key = " + key + ", value = " + value.toString());
-        // });
-
-        // KafkaStreams streams = new KafkaStreams(builder.build(), propsStream);
-        // streams.start();
-
-        // Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
-
-        // latch.await();
-
-        // while (true) {
-
-        // ConsumerRecords<String, String> recordsJson = consumerJson.poll(timeout);
-        // for (ConsumerRecord<String, String> record : recordsJson) {
-        // System.out.printf(" --> topic = %s, offset = %d, key = %s, value = %s%n",
-        // record.topic(),
-        // record.offset(), record.key(), record.value());
-        // }
-
-        // ConsumerRecords<String, ChildrenDto> records =
-        // consumerMessages.poll(timeout);
-        // for (ConsumerRecord<String, ChildrenDto> record : records) {
-        // System.out.printf(" --> topic = %s, offset = %d, key = %s, value = %s%n",
-        // record.topic(),
-        // record.offset(), record.key(), record.value().toString());
-
-        // ChildrenDto value = record.value();
-        // String parentId = value.getData().getParentId();
-
-        // if (actualTimestamps.containsKey(parentId) == false) {
-        // actualTimestamps.put(parentId, longToLocalDateTime(record.timestamp()));
-        // hotPostCounts.put(parentId, 1);
-        // } else {
-        // LocalDateTime actualTimestamp = actualTimestamps.get(parentId);
-        // LocalDateTime recordTimestamp = longToLocalDateTime(record.timestamp());
-        // Integer hotPostCount = hotPostCounts.get(parentId);
-
-        // if (actualTimestamp.plusMinutes(1).isAfter(recordTimestamp)) {
-        // hotPostCounts.put(parentId, hotPostCount + 1);
-        // } else {
-        // actualTimestamps.remove(parentId);
-        // continue;
-        // }
-
-        // if (hotPostCount + 1 == 3) {
-        // hotPostsProducer.publish(value);
-        // actualTimestamps.remove(parentId);
-        // }
-        // }
-        // }
-        // }
-
-    }
-
-    public static LocalDateTime longToLocalDateTime(long timestamp) {
-        return LocalDateTime.ofInstant(new Date(timestamp).toInstant(), ZoneId.systemDefault());
+        // shutdown hook to correctly close the streams application
+        Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
     }
 }
+
+// para mostrar as saídas no console
+/*
+ * kafka-console-consumer --topic example --bootstrap-server broker:9092 \
+ * --from-beginning \
+ * --property print.key=true \
+ * --property key.separator=" : " \
+ * --key-deserializer "org.apache.kafka.common.serialization.LongDeserializer" \
+ * --value-deserializer
+ * "org.apache.kafka.common.serialization.DoubleDeserializer"
+ *
+ *
+ */

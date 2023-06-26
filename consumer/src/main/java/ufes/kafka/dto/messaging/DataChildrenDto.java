@@ -65,4 +65,16 @@ public class DataChildrenDto {
     public LocalDateTime getLocalDateTime() {
         return LocalDateTime.ofInstant(new Date(created * 1000).toInstant(), ZoneId.systemDefault());
     }
+
+    @Override
+    public String toString() {
+        return "DataChildrenDto{" +
+                "id='" + id + '\'' +
+                ", parentId='" + parentId + '\'' +
+                ", author='" + author + '\'' +
+                ", body='" + body + '\'' +
+                ", linkTitle='" + linkTitle + '\'' +
+                ", created=" + created +
+                '}';
+    }
 }

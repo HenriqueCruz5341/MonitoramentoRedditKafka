@@ -27,4 +27,12 @@ public class ChildrenDto {
     public void setData(DataChildrenDto data) {
         this.data = data;
     }
+
+    @Override
+    public String toString() {
+        return "ChildrenDto{" +
+                "kind='" + kind + '\'' +
+                ", data=" + data +
+                '}';
+    }
 }
