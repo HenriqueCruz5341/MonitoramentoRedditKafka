@@ -23,4 +23,9 @@ public class ProfileDto {
     public void setNumSubscribers(Integer numSubscribers) {
         this.numSubscribers = numSubscribers;
     }
+
+    @Override
+    public String toString() {
+        return "ProfileDto [blockedUsers=" + blockedUsers + ", numSubscribers=" + numSubscribers + "]";
+    }
 }

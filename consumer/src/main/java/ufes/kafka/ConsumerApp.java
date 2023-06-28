@@ -14,12 +14,13 @@ import org.apache.kafka.streams.errors.StreamsUncaughtExceptionHandler;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.Grouped;
 import org.apache.kafka.streams.kstream.JoinWindows;
+import org.apache.kafka.streams.kstream.Joined;
 import org.apache.kafka.streams.kstream.KGroupedStream;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KTable;
-import org.apache.kafka.streams.kstream.Materialized;
 import org.apache.kafka.streams.kstream.Produced;
 import org.apache.kafka.streams.kstream.SlidingWindows;
+import org.apache.kafka.streams.kstream.StreamJoined;
 import org.apache.kafka.streams.kstream.ValueJoiner;
 import org.apache.kafka.streams.kstream.Windowed;
 
@@ -52,9 +53,9 @@ public class ConsumerApp {
         // "hot-posts" o parentId e a quantidade de mensagens
         final Serde<ChildrenDto> childrenDtoJsonSerde = Serdes.serdeFrom(new KafkaJsonSerializer<ChildrenDto>(),
                 new KafkaJsonDeserializer<ChildrenDto>(ChildrenDto.class));
-        KStream<String, ChildrenDto> nessagingKStream = builder.stream("messaging",
+        KStream<String, ChildrenDto> messagingKStream = builder.stream("messaging",
                 Consumed.with(stringSerde, childrenDtoJsonSerde));
-        KGroupedStream<String, ChildrenDto> groupedStream = nessagingKStream
+        KGroupedStream<String, ChildrenDto> groupedStream = messagingKStream
                 .groupByKey(Grouped.with(stringSerde, childrenDtoJsonSerde));
         SlidingWindows window = SlidingWindows.ofTimeDifferenceAndGrace(Duration.ofSeconds(15), Duration.ofSeconds(1));
         // TimeWindows window = TimeWindows.ofSizeAndGrace(Duration.ofSeconds(15),
@@ -72,16 +73,21 @@ public class ConsumerApp {
         // publicado no tópico "overview-filtered", se não foi, publica no tópico
         // "overview-filtered"
         final Serde<DataPostDto> dataPostDtoJsonSerde = Serdes.serdeFrom(new KafkaJsonSerializer<DataPostDto>(),
-                new KafkaJsonDeserializer<DataPostDto>(DataPostDto.class));
-        KStream<String, DataPostDto> overviewKStream = builder.stream("overview",
-                Consumed.with(stringSerde, dataPostDtoJsonSerde));
-        KGroupedStream<String, DataPostDto> groupedStream2 = overviewKStream
-                .selectKey((key, value) -> value.getId())
-                .groupByKey();
-        KTable<String, DataPostDto> table = groupedStream2.reduce((aggValue,
-                newValue) -> newValue, Materialized.as("overview-filtered-store"));
-        table.toStream().to("overview-filtered", Produced.with(stringSerde,
-                dataPostDtoJsonSerde));
+        new KafkaJsonDeserializer<DataPostDto>(DataPostDto.class));
+        KStream<String, DataPostDto> overviewKStream = builder.stream("overview", Consumed.with(stringSerde, dataPostDtoJsonSerde))
+                .selectKey((key, value) -> value.getId());
+        KTable<String, DataPostDto> filteredTable = builder.table("overview-filtered", Consumed.with(stringSerde, dataPostDtoJsonSerde));
+        ValueJoiner<DataPostDto, DataPostDto, DataPostDto> overviewJoiner = (overview, filtered) -> {
+            if (filtered == null) {
+                overview.setId(null);
+            }
+            return overview;
+        };
+        KStream<String, DataPostDto> filteredKStream = overviewKStream
+                .leftJoin(filteredTable, overviewJoiner, Joined.with(stringSerde, dataPostDtoJsonSerde, dataPostDtoJsonSerde))
+                .filter((key, value) -> value.getId() == null).mapValues((key, value) -> {value.setId(key); return value;})
+                .selectKey((key, value) -> value.getId());
+        filteredKStream.to("overview-filtered", Produced.with(stringSerde, dataPostDtoJsonSerde));
         // ======================================================================================================
 
         // Stream 3:
@@ -106,7 +112,8 @@ public class ConsumerApp {
             return profile;
         };
         KStream<String, ProfileDto> profileKStream = numSubscribersKStream.join(blockedUsersKStream, valueJoiner,
-                JoinWindows.ofTimeDifferenceAndGrace(Duration.ofSeconds(30), Duration.ofSeconds(1)));
+                JoinWindows.ofTimeDifferenceAndGrace(Duration.ofSeconds(30), Duration.ofSeconds(1)),
+                StreamJoined.with(stringSerde, meDtoJsonSerde, blockedUsersDtoJsonSerde));
         profileKStream.to("profile", Produced.with(stringSerde, profileDtoJsonSerde));
         // ======================================================================================================
 

@@ -37,4 +37,9 @@ public class ChildrenDto {
     public void setId(String id) {
         this.id = id;
     }
+
+    @Override
+    public String toString() {
+        return "ChildrenDto [date=" + date + ", relId=" + relId + ", name=" + name + ", id=" + id + "]";
+    }
 }
