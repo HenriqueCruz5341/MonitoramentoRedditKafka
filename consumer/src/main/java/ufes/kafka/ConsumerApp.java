@@ -28,6 +28,7 @@ import ufes.kafka.dto.blocked.BlockedUsersDto;
 import ufes.kafka.dto.common.DataPostDto;
 import ufes.kafka.dto.me.MeDto;
 import ufes.kafka.dto.messaging.ChildrenDto;
+import ufes.kafka.dto.post.PostDto;
 import ufes.kafka.dto.profile.ProfileDto;
 import ufes.kafka.helpers.KafkaJsonDeserializer;
 import ufes.kafka.helpers.KafkaJsonSerializer;
@@ -120,6 +121,17 @@ public class ConsumerApp {
         // Stream 4:
         // Recebe os dados do tópico "posts", verifica se o post tem mais de 3
         // comentários, se tiver, publica no tópico "danger-posts"
+
+        final Serde<PostDto> postDtoJsonSerde = Serdes.serdeFrom(new KafkaJsonSerializer<PostDto>(),
+                new KafkaJsonDeserializer<PostDto>(PostDto.class));
+
+        KStream<String, PostDto> postsKStream = builder.stream("posts", Consumed.with(stringSerde, postDtoJsonSerde));
+
+        KStream<String, PostDto> dangerPostsKStream = postsKStream
+                .filter((key, post) -> post.getComments() != null && post.getComments().size() > 3);
+
+        dangerPostsKStream.to("danger-posts", Produced.with(stringSerde, postDtoJsonSerde));
+
 
         // ======================================================================================================
 
