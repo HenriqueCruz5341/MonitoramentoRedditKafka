@@ -59,8 +59,6 @@ public class ConsumerApp {
         KGroupedStream<String, ChildrenDto> groupedStream = messagingKStream
                 .groupByKey(Grouped.with(stringSerde, childrenDtoJsonSerde));
         SlidingWindows window = SlidingWindows.ofTimeDifferenceAndGrace(Duration.ofSeconds(15), Duration.ofSeconds(1));
-        // TimeWindows window = TimeWindows.ofSizeAndGrace(Duration.ofSeconds(15),
-        // Duration.ofSeconds(1));
         KTable<Windowed<String>, Long> windowedCounts = groupedStream
                 .windowedBy(window).count();
         windowedCounts
@@ -127,8 +125,10 @@ public class ConsumerApp {
 
         KStream<String, PostDto> postsKStream = builder.stream("posts", Consumed.with(stringSerde, postDtoJsonSerde));
 
-        KStream<String, PostDto> dangerPostsKStream = postsKStream
-                .filter((key, post) -> post.getComments() != null && post.getComments().size() > 3);
+        KStream<String, PostDto> dangerPostsKStream = postsKStream.filter((key, post) -> post.getComments() != null && 
+                post.getComments().size() > 0 && 
+                post.getComments().get(0).getChildren() != null && 
+                post.getComments().get(0).getChildren().size() > 3);
 
         dangerPostsKStream.to("danger-posts", Produced.with(stringSerde, postDtoJsonSerde));
 
